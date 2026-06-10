@@ -385,6 +385,10 @@
         line-height: 1.4;
       }
 
+      .tool-card select {
+        margin-bottom: 10px;
+      }
+
       .roster-header {
         display: flex;
         justify-content: space-between;
@@ -699,12 +703,15 @@
             <div class="admin-tools">
               <div class="tool-card">
                 <h3>Clock Location</h3>
-                <p>Use this device’s current location as the approved clock point.</p>
-
+              
+                <select id="clockLocationSelect" aria-label="Clock location">
+                  <option value="">Loading locations...</option>
+                </select>
+              
                 <button id="setLocationButton" class="btn btn-primary btn-full" type="button">
-                  Set Clock Location
+                  Set Selected Location
                 </button>
-
+              
                 <p id="locationStatus" class="status-line neutral"></p>
               </div>
 
@@ -836,6 +843,7 @@
       const loginButton = document.getElementById("loginButton");
       const loginStatus = document.getElementById("loginStatus");
 
+      const clockLocationSelect = document.getElementById("clockLocationSelect");
       const setLocationButton = document.getElementById("setLocationButton");
       const locationStatus = document.getElementById("locationStatus");
 
@@ -921,6 +929,7 @@
 
         if (adminToken) {
           showAdminArea();
+          loadClockLocations();
           loadRoster();
         } else {
           showLoginArea();
@@ -1151,6 +1160,7 @@
           pinBox.value = "";
           setStatus(loginStatus, "", "neutral");
           showAdminArea();
+          loadClockLocations();
           loadRoster();
 
         } catch (error) {
@@ -1160,6 +1170,63 @@
           loginButton.disabled = false;
         }
       });
+
+      async function loadClockLocations() {
+        if (!adminToken) {
+          clockLocationSelect.innerHTML =
+            '<option value="">Sign in required</option>';
+          setLocationButton.disabled = true;
+          return;
+        }
+      
+        setLocationButton.disabled = true;
+        clockLocationSelect.innerHTML =
+          '<option value="">Loading locations...</option>';
+      
+        try {
+          const locations = await callClockItApi("admin_getClockLocations", {
+            adminToken: adminToken
+          });
+      
+          const settableLocations = (locations || []).filter(function (location) {
+            return location.canSet;
+          });
+      
+          if (settableLocations.length === 0) {
+            clockLocationSelect.innerHTML =
+              '<option value="">No settable locations</option>';
+      
+            setStatus(
+              locationStatus,
+              "Add a location name, max distance, and max accuracy in Settings.",
+              "warning"
+            );
+      
+            return;
+          }
+      
+          clockLocationSelect.innerHTML = settableLocations.map(function (location) {
+            const suffix = location.isActive ? "" : " — not set";
+      
+            return (
+              '<option value="' + escapeHtml(location.index) + '">' +
+              escapeHtml(location.name + suffix) +
+              "</option>"
+            );
+          }).join("");
+      
+          setLocationButton.disabled = false;
+          setStatus(locationStatus, "", "neutral");
+      
+        } catch (error) {
+          handleAdminSessionError(error, locationStatus);
+      
+          clockLocationSelect.innerHTML =
+            '<option value="">Could not load locations</option>';
+      
+          setLocationButton.disabled = true;
+        }
+      }
 
       async function loadRoster() {
         if (!adminToken) {
@@ -1273,12 +1340,19 @@
           showLoginArea();
           return;
         }
-
+      
+        const locationIndex = clockLocationSelect.value;
+      
+        if (locationIndex === "") {
+          setStatus(locationStatus, "Select a clock location.", "warning");
+          return;
+        }
+      
         setLocationButton.disabled = true;
         setStatus(locationStatus, "Requesting location...", "neutral");
-
+      
         let location;
-
+      
         try {
           location = await getBrowserLocation();
         } catch (error) {
@@ -1286,15 +1360,16 @@
           setLocationButton.disabled = false;
           return;
         }
-
+      
         setStatus(locationStatus, "Saving clock location...", "neutral");
-
+      
         try {
           const result = await callClockItApi("admin_setClockLocation", {
             adminToken: adminToken,
+            locationIndex: locationIndex,
             location: location
           });
-
+      
           setStatus(
             locationStatus,
             result.message +
@@ -1303,10 +1378,12 @@
               " meters.",
             "success"
           );
-
+      
+          loadClockLocations();
+      
         } catch (error) {
           handleAdminSessionError(error, locationStatus);
-
+      
         } finally {
           setLocationButton.disabled = false;
         }
