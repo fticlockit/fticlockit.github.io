@@ -240,6 +240,10 @@
         line-height: 1.45;
       }
 
+      .status-line:empty {
+        display: none;
+      }
+
       .status-line.neutral {
         color: var(--muted);
       }
@@ -254,21 +258,6 @@
 
       .status-line.warning {
         color: var(--warning);
-      }
-
-      .confirm-card {
-        margin-top: 16px;
-        padding: 16px;
-        border-radius: var(--radius-md);
-        border: 1px solid #bfdbfe;
-        background: var(--soft-blue);
-      }
-
-      .confirm-card p {
-        margin: 0 0 12px;
-        color: #1e3a8a;
-        font-weight: 750;
-        line-height: 1.45;
       }
 
       .modal-overlay {
@@ -302,6 +291,11 @@
         margin: 0;
         color: var(--muted);
         line-height: 1.5;
+      }
+
+      .modal-card .status-line {
+        min-height: 0;
+        margin-top: 12px;
       }
       
       .modal-actions {
@@ -618,7 +612,6 @@
       <main>
         <section id="clockInPage" class="page-center">
           <div class="clock-card">
-            <div class="kicker">FTI</div>
 
             <h1 class="clock-title">NAO Time Clock</h1>
 
@@ -647,6 +640,7 @@
               <div class="modal-card">
                 <h2>Confirm Punch</h2>
                 <p id="confirmText"></p>
+                <p id="confirmStatus" class="status-line neutral"></p>
             
                 <div class="modal-actions">
                   <button id="cancelConfirmButton" class="btn btn-light" type="button">
@@ -681,7 +675,6 @@
 
           <div id="loginArea" class="panel login-card">
             <div class="panel-inner">
-              <h2>PIN</h2>
 
               <div class="field-group">
                 <input
@@ -689,6 +682,8 @@
                   type="password"
                   inputmode="numeric"
                   autocomplete="off"
+                  placeholder="PIN"
+                  aria-label="PIN"
                 >
               </div>
 
@@ -716,7 +711,6 @@
               <div class="tool-card">
                 <h3>Note</h3>
 
-                <label for="bulkNote">Note</label>
                 <input
                   id="bulkNote"
                   type="text"
@@ -832,6 +826,7 @@
       const cancelConfirmButton = document.getElementById("cancelConfirmButton");
       const confirmArea = document.getElementById("confirmArea");
       const confirmText = document.getElementById("confirmText");
+      const confirmStatus = document.getElementById("confirmStatus");
       const statusText = document.getElementById("status");
 
       const loginArea = document.getElementById("loginArea");
@@ -904,6 +899,12 @@
       function setStatus(element, message, type) {
         element.innerText = message || "";
         element.className = "status-line " + (type || "neutral");
+      
+        if (message) {
+          element.style.display = "block";
+        } else {
+          element.style.display = "none";
+        }
       }
 
       function showClockInPage() {
@@ -1040,6 +1041,7 @@
           confirmButton.innerText =
             formatActionLabel(result.nextAction);
 
+          setStatus(confirmStatus, "", "neutral");
           confirmArea.style.display = "flex";
           setStatus(statusText, "", "neutral");
 
@@ -1052,10 +1054,20 @@
       });
 
       cancelConfirmButton.addEventListener("click", function () {
+        const modalMessage = confirmStatus.innerText.trim();
+        const hadError = confirmStatus.className.indexOf("error") !== -1;
+      
         pendingPunch = null;
+        isSavingPunch = false;
         confirmButton.disabled = false;
         confirmArea.style.display = "none";
-        setStatus(statusText, "Cancelled.", "neutral");
+        setStatus(confirmStatus, "", "neutral");
+      
+        if (hadError && modalMessage) {
+          setStatus(statusText, modalMessage, "error");
+        } else {
+          setStatus(statusText, "Cancelled.", "neutral");
+        }
       });
       
       confirmArea.addEventListener("click", function (event) {
@@ -1072,44 +1084,46 @@
 
       confirmButton.addEventListener("click", async function () {
         if (isSavingPunch) return;
-
+      
         if (!pendingPunch) {
-          setStatus(statusText, "No employee selected.", "error");
+          setStatus(confirmStatus, "No employee selected.", "error");
           return;
         }
-
+      
         isSavingPunch = true;
         confirmButton.disabled = true;
-        setStatus(statusText, "Requesting location...", "neutral");
-
+        setStatus(confirmStatus, "Requesting location...", "neutral");
+      
         let location;
-
+      
         try {
           location = await getBrowserLocation();
         } catch (error) {
-          setStatus(statusText, error.message, "error");
+          setStatus(confirmStatus, error.message, "error");
           isSavingPunch = false;
           confirmButton.disabled = false;
           return;
         }
-
-        setStatus(statusText, "Saving punch...", "neutral");
-
+      
+        setStatus(confirmStatus, "Saving punch...", "neutral");
+      
         try {
           const result = await callClockItApi("clockIn_confirmPunch", {
             id: pendingPunch.id,
             currentStatus: pendingPunch.currentStatus,
             location: location
           });
-
-          setStatus(statusText, result.message, "success");
+      
           confirmArea.style.display = "none";
+          setStatus(confirmStatus, "", "neutral");
+          setStatus(statusText, result.message, "success");
+      
           employeeIdBox.value = "";
           pendingPunch = null;
-
+      
         } catch (error) {
-          setStatus(statusText, error.message, "error");
-
+          setStatus(confirmStatus, error.message, "error");
+      
         } finally {
           isSavingPunch = false;
           confirmButton.disabled = false;
@@ -1461,6 +1475,7 @@
         rosterTableBody.innerHTML =
           '<tr><td colspan="7">Roster not loaded.</td></tr>';
         setStatus(loginStatus, "", "neutral");
+        pinBox.value = "";
         showLoginArea();
       });
 
