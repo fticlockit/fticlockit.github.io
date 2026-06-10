@@ -671,7 +671,7 @@
         <section id="adminPage" class="admin-shell" style="display: none;">
           <div class="admin-header">
             <div>
-              <h1>Management</h1>
+              <h1>Admin</h1>
             </div>
           
             <button id="backButton" class="btn btn-secondary" type="button">
@@ -681,10 +681,9 @@
 
           <div id="loginArea" class="panel login-card">
             <div class="panel-inner">
-              <h2>Sign in</h2>
+              <h2>PIN</h2>
 
               <div class="field-group">
-                <label for="pinBox">PIN</label>
                 <input
                   id="pinBox"
                   type="password"
@@ -1461,7 +1460,7 @@
         setStatus(bulkStatus, "", "neutral");
         rosterTableBody.innerHTML =
           '<tr><td colspan="7">Roster not loaded.</td></tr>';
-        setStatus(loginStatus, "Logged out.", "neutral");
+        setStatus(loginStatus, "", "neutral");
         showLoginArea();
       });
 
