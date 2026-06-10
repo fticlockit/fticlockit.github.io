@@ -1171,13 +1171,20 @@
         }
       });
 
-      async function loadClockLocations() {
+      async function loadClockLocations(selectedLocationIndex, shouldClearStatus) {
         if (!adminToken) {
           clockLocationSelect.innerHTML =
             '<option value="">Sign in required</option>';
           setLocationButton.disabled = true;
           return;
         }
+      
+        const currentSelection =
+          selectedLocationIndex !== undefined &&
+          selectedLocationIndex !== null &&
+          String(selectedLocationIndex) !== ""
+            ? String(selectedLocationIndex)
+            : clockLocationSelect.value;
       
         setLocationButton.disabled = true;
         clockLocationSelect.innerHTML =
@@ -1196,27 +1203,34 @@
             clockLocationSelect.innerHTML =
               '<option value="">No settable locations</option>';
       
-            setStatus(
-              locationStatus,
-              "Add a location name, max distance, and max accuracy in Settings.",
-              "warning"
-            );
+            if (shouldClearStatus !== false) {
+              setStatus(
+                locationStatus,
+                "Add a location name, max distance, and max accuracy in Settings.",
+                "warning"
+              );
+            }
       
             return;
           }
       
           clockLocationSelect.innerHTML = settableLocations.map(function (location) {
             const suffix = location.isActive ? "" : " — not set";
+            const selected =
+              String(location.index) === currentSelection ? " selected" : "";
       
             return (
-              '<option value="' + escapeHtml(location.index) + '">' +
+              '<option value="' + escapeHtml(location.index) + '"' + selected + ">" +
               escapeHtml(location.name + suffix) +
               "</option>"
             );
           }).join("");
       
           setLocationButton.disabled = false;
-          setStatus(locationStatus, "", "neutral");
+      
+          if (shouldClearStatus !== false) {
+            setStatus(locationStatus, "", "neutral");
+          }
       
         } catch (error) {
           handleAdminSessionError(error, locationStatus);
@@ -1379,7 +1393,7 @@
             "success"
           );
       
-          loadClockLocations();
+          await loadClockLocations(locationIndex, false);
       
         } catch (error) {
           handleAdminSessionError(error, locationStatus);
