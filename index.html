@@ -271,6 +271,52 @@
         line-height: 1.45;
       }
 
+      .modal-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background: rgba(15, 23, 42, 0.52);
+        backdrop-filter: blur(6px);
+      }
+      
+      .modal-card {
+        width: 100%;
+        max-width: 390px;
+        padding: 24px;
+        border-radius: var(--radius-lg);
+        background: var(--card);
+        box-shadow: var(--shadow);
+        border: 1px solid rgba(255, 255, 255, 0.85);
+      }
+      
+      .modal-card h2 {
+        font-size: 24px;
+        margin-bottom: 10px;
+      }
+      
+      .modal-card p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      
+      .modal-actions {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        margin-top: 20px;
+      }
+      
+      @media (max-width: 520px) {
+        .modal-actions {
+          grid-template-columns: 1fr;
+        }
+      }
+
       .footer-note {
         margin-top: 22px;
         padding-top: 16px;
@@ -597,11 +643,21 @@
               Check Status
             </button>
 
-            <div id="confirmArea" class="confirm-card" style="display: none;">
-              <p id="confirmText"></p>
-              <button id="confirmButton" class="btn btn-success btn-full" type="button">
-                Confirm Punch
-              </button>
+            <div id="confirmArea" class="modal-overlay" style="display: none;">
+              <div class="modal-card">
+                <h2>Confirm Punch</h2>
+                <p id="confirmText"></p>
+            
+                <div class="modal-actions">
+                  <button id="cancelConfirmButton" class="btn btn-light" type="button">
+                    Cancel
+                  </button>
+            
+                  <button id="confirmButton" class="btn btn-success" type="button">
+                    Confirm
+                  </button>
+                </div>
+              </div>
             </div>
 
             <p id="status" class="status-line neutral"></p>
@@ -615,10 +671,9 @@
         <section id="adminPage" class="admin-shell" style="display: none;">
           <div class="admin-header">
             <div>
-              <h1>Admin</h1>
-              <p>Roster, clock location, and manual punch tools.</p>
+              <h1>Management</h1>
             </div>
-
+          
             <button id="backButton" class="btn btn-secondary" type="button">
               Back to Time Clock
             </button>
@@ -626,12 +681,10 @@
 
           <div id="loginArea" class="panel login-card">
             <div class="panel-inner">
-              <div class="kicker">Admin</div>
               <h2>Sign in</h2>
-              <p class="subtitle">Enter the admin PIN to continue.</p>
 
               <div class="field-group">
-                <label for="pinBox">Admin PIN</label>
+                <label for="pinBox">PIN</label>
                 <input
                   id="pinBox"
                   type="password"
@@ -641,7 +694,7 @@
               </div>
 
               <button id="loginButton" class="btn btn-primary btn-full" type="button">
-                Unlock Admin
+                Sign In
               </button>
 
               <p id="loginStatus" class="status-line neutral"></p>
@@ -662,8 +715,7 @@
               </div>
 
               <div class="tool-card">
-                <h3>Admin Note</h3>
-                <p>Used for individual and bulk manual punches.</p>
+                <h3>Note</h3>
 
                 <label for="bulkNote">Note</label>
                 <input
@@ -778,6 +830,7 @@
       const employeeIdBox = document.getElementById("employeeId");
       const checkButton = document.getElementById("checkButton");
       const confirmButton = document.getElementById("confirmButton");
+      const cancelConfirmButton = document.getElementById("cancelConfirmButton");
       const confirmArea = document.getElementById("confirmArea");
       const confirmText = document.getElementById("confirmText");
       const statusText = document.getElementById("status");
@@ -981,14 +1034,14 @@
             result.name +
             " is currently " +
             result.currentStatus +
-            ". Confirm " +
+            ". Continue with " +
             formatActionLabel(result.nextAction) +
             "?";
 
           confirmButton.innerText =
-            "Confirm " + formatActionLabel(result.nextAction);
+            formatActionLabel(result.nextAction);
 
-          confirmArea.style.display = "block";
+          confirmArea.style.display = "flex";
           setStatus(statusText, "", "neutral");
 
         } catch (error) {
@@ -996,6 +1049,25 @@
 
         } finally {
           checkButton.disabled = false;
+        }
+      });
+
+      cancelConfirmButton.addEventListener("click", function () {
+        pendingPunch = null;
+        confirmButton.disabled = false;
+        confirmArea.style.display = "none";
+        setStatus(statusText, "Cancelled.", "neutral");
+      });
+      
+      confirmArea.addEventListener("click", function (event) {
+        if (event.target === confirmArea) {
+          cancelConfirmButton.click();
+        }
+      });
+      
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && confirmArea.style.display === "flex") {
+          cancelConfirmButton.click();
         }
       });
 
